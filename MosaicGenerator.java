@@ -66,37 +66,50 @@ public class MosaicGenerator{
     }
 
     public void generate(File originalFile,File resultFile)throws Exception{
+        generate(originalFile,resultFile,2);
+    }
+
+    public void generate(File originalFile,File resultFile,double scale)throws Exception{
         BufferedImage original=ImageIO.read(originalFile);
 
-        final int ORIGINAL_WIDTH=original.getWidth();
-        final int ORIGINAL_HEIGHT=original.getHeight();
-        double atomWidth=(double)ORIGINAL_WIDTH/columns;
-        double atomHeight=(double)ORIGINAL_HEIGHT/rows;
+        final double ORIGINAL_WIDTH=original.getWidth();
+        final double ORIGINAL_HEIGHT=original.getHeight();
 
-        BufferedImage result=new BufferedImage(ORIGINAL_WIDTH,ORIGINAL_HEIGHT,hasAlpha?BufferedImage.TYPE_4BYTE_ABGR:BufferedImage.TYPE_3BYTE_BGR);
+        final double ORIGINAL_ATOM_WIDTH=ORIGINAL_WIDTH/columns;
+        final double ORIGINAL_ATOM_HEIGHT=ORIGINAL_HEIGHT/rows;
+
+        final double RESULT_WIDTH=ORIGINAL_WIDTH*scale;
+        final double RESULT_HEIGHT=ORIGINAL_HEIGHT*scale;
+
+        final double RESULT_ATOM_WIDTH=RESULT_WIDTH/columns;
+        final double RESULT_ATOM_HEIGHT=RESULT_HEIGHT/rows;
+
+        BufferedImage result=new BufferedImage((int)Math.round(RESULT_WIDTH),(int)Math.round(RESULT_HEIGHT),hasAlpha?BufferedImage.TYPE_4BYTE_ABGR:BufferedImage.TYPE_3BYTE_BGR);
         Graphics2D g=result.createGraphics();
 
-        for(int c=0;c<columns;c++)for(int r=0;r<rows;r++){
-            final int X_START=(int)(atomWidth*c);
-            final int X_END=(int)(atomWidth*(c+1));
-            final int Y_START=(int)(atomHeight*r);
-            final int Y_END=(int)(atomHeight*(r+1));
+        for(int c=0;c<columns;c++){
+            final int ORIGINAL_X_START=(int)Math.round(ORIGINAL_ATOM_WIDTH*c);
+            final int ORIGINAL_X_END=(int)Math.round(ORIGINAL_ATOM_WIDTH*(c+1));
+            final int RESULT_X=(int)Math.round(RESULT_ATOM_WIDTH*c);
+            for(int r=0;r<rows;r++){
+                final int ORIGINAL_Y_START=(int)Math.round(ORIGINAL_ATOM_HEIGHT*r);
+                final int ORIGINAL_Y_END=(int)Math.round(ORIGINAL_ATOM_HEIGHT*(r+1));
+                final int RESULT_Y=(int)Math.round(RESULT_ATOM_HEIGHT*r);
 
-            List<Integer> colors=new ArrayList<>();
-            for(int x=X_START;x<X_END;x++)for(int y=Y_START;y<Y_END;y++){
-                colors.add(original.getRGB(x,y));
-            }
+                List<Integer> colors=new ArrayList<>();
+                for(int x=ORIGINAL_X_START;x<ORIGINAL_X_END;x++){
+                    for(int y=ORIGINAL_Y_START;y<ORIGINAL_Y_END;y++){
+                        colors.add(original.getRGB(x,y));
+                    }
+                }
 
-            int[] colorsInt=new int[colors.size()];
-            for(int i=0;i<colorsInt.length;i++){
-                colorsInt[i]=colors.get(i);
+                BufferedImage atom=ImageUtil.resize(getImage(getColor(colors).getRGB()),(int)Math.round(RESULT_ATOM_WIDTH),(int)Math.round(RESULT_ATOM_HEIGHT),keepAspect);
+                if(!hasAlpha){
+                    ImageUtil.removeAlpha(atom);
+                }
+                g.drawImage(atom,RESULT_X,RESULT_Y,null);
             }
-            
-            BufferedImage image=ImageUtil.resize(getImage(getColor(colorsInt).getRGB()),(int)atomWidth,(int)atomHeight,keepAspect);
-            if(!hasAlpha){
-                ImageUtil.removeAlpha(image);
-            }
-            g.drawImage(image,X_START,Y_START,null);
+            System.out.println(String.format("%2.2f",99*((c+1d)/columns))+"% generated");
         }
         String resultFileName=resultFile.getName();
         String formatName=resultFileName.substring(resultFileName.lastIndexOf(".")+1);
@@ -154,19 +167,20 @@ public class MosaicGenerator{
         return pointedImages.get(keys[keys.length-1]);
     }
 
-    private Color getColor(int... argbs){
+    private Color getColor(List<Integer> argbs){
         int a,r,g,b;
         a=r=g=b=0;
-        for(int i=0;i<argbs.length;i++){
-            a+=argbs[i]>>>24&0xff;
-            r+=argbs[i]>>>16&0xff;
-            g+=argbs[i]>>>8&0xff;
-            b+=argbs[i]&0xff;
+        final int LENGTH=argbs.size();
+        for(int i=0;i<LENGTH;i++){
+            a+=argbs.get(i)>>>24&0xff;
+            r+=argbs.get(i)>>>16&0xff;
+            g+=argbs.get(i)>>>8&0xff;
+            b+=argbs.get(i)&0xff;
         }
-        a/=argbs.length;
-        r/=argbs.length;
-        g/=argbs.length;
-        b/=argbs.length;
+        a/=LENGTH;
+        r/=LENGTH;
+        g/=LENGTH;
+        b/=LENGTH;
 
         int argb=(int)((a<<24)+(r<<16)+(g<<8)+b);
 

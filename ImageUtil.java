@@ -45,12 +45,12 @@ public class ImageUtil{
 
             if(widthRatio<heightRatio){
                 double scaledImageHeight=imageHeight*widthRatio;
-                int y=(int)((height-scaledImageHeight)/2);
-                g.drawImage(image.getScaledInstance(width,(int)scaledImageHeight,Image.SCALE_SMOOTH),0,y,null);
+                int y=(int)Math.round((height-scaledImageHeight)/2);
+                g.drawImage(image.getScaledInstance(width,(int)Math.round(scaledImageHeight),Image.SCALE_SMOOTH),0,y,null);
             }else if(widthRatio>heightRatio){
                 double scaledImageWidth=imageWidth*heightRatio;
-                int x=(int)((width-scaledImageWidth)/2);
-                g.drawImage(image.getScaledInstance((int)scaledImageWidth,height,Image.SCALE_SMOOTH),x,0,null);
+                int x=(int)Math.round((width-scaledImageWidth)/2);
+                g.drawImage(image.getScaledInstance((int)Math.round(scaledImageWidth),height,Image.SCALE_SMOOTH),x,0,null);
             }else{
                 g.drawImage(image.getScaledInstance(width,height,Image.SCALE_SMOOTH),0,0,null);
             }
