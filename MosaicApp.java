@@ -3,7 +3,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 
@@ -116,24 +115,54 @@ public class MosaicApp extends Application{
 
         Label labelMatrixSize=new Label("matrix size");
 
-        TextField tfColumns=new TextField();
-        tfColumns.setTextFormatter(getTextFormatter());
+        TextField tfColumns=new TextField(String.valueOf(generator.getColumns()));
+        tfColumns.setTextFormatter(getTextFormatter(Format.INT));
         tfColumns.setOnKeyReleased(e->{
             String text=tfColumns.getText();
             if(!text.equals("")){
                 generator.setColumns(Integer.parseInt(text));
             }
         });
+        tfColumns.focusedProperty().addListener((arg,oldV,newV)->tfColumns.setText(String.valueOf(generator.getColumns())));
         Label labelMatrixX=new Label("x");
-        TextField tfRows=new TextField();
-        tfRows.setTextFormatter(getTextFormatter());
+        TextField tfRows=new TextField(String.valueOf(generator.getRows()));
+        tfRows.setTextFormatter(getTextFormatter(Format.INT));
         tfRows.setOnKeyReleased(e->{
             String text=tfRows.getText();
             if(!text.equals("")){
                 generator.setRows(Integer.parseInt(text));
             }
         });
+        tfRows.focusedProperty().addListener((arg,oldV,newV)->tfRows.setText(String.valueOf(generator.getRows())));
         HBox hbMatrixSize=new HBox(tfColumns,labelMatrixX,tfRows);
+
+        Label labelScale=new Label("scale");
+
+        Label labelScaleX=new Label("x");
+        TextField tfScale=new TextField(String.valueOf(generator.getScale()));
+        tfScale.setTextFormatter(getTextFormatter(Format.DOUBLE));
+        tfScale.setOnKeyReleased(e->{
+            String text=tfScale.getText();
+            text=text.replaceAll("\\.+",".");
+            if(text.startsWith(".")){
+                text=0+text;
+            }
+            if(!text.equals("")){
+                int index=text.lastIndexOf(".");
+                if(text.indexOf(".")!=index){
+                    text=text.substring(0,index);
+                }
+                String[] split=text.split("\\.");
+                if(split.length>2){
+                    text=split[0]+"."+split[1];
+                }
+                generator.setScale(Double.parseDouble(text));
+                tfScale.setText(text);
+                tfScale.positionCaret(text.length());
+            }
+        });
+        tfScale.focusedProperty().addListener((arg,oldV,newV)->tfScale.setText(String.valueOf(generator.getScale())));
+        HBox hbScale=new HBox(labelScaleX,tfScale);
 
         CheckBox cbAlpha=new CheckBox("enable alpha");
         cbAlpha.setOnAction(e->{
@@ -146,6 +175,7 @@ public class MosaicApp extends Application{
 
         VBox vbSettings=new VBox(
             labelMatrixSize,hbMatrixSize,new Separator(),
+            labelScale,hbScale,new Separator(),
             cbAlpha,cbKeepAspect
         );
         vbSettings.setPadding(new Insets(INSET));
@@ -261,11 +291,20 @@ public class MosaicApp extends Application{
         return new ExtensionFilter("image",writableFileExtensions);
     }
 
-    private TextFormatter<String> getTextFormatter(){
-        Pattern notNumber=Pattern.compile("[^0-9]+");
+    private TextFormatter<?> getTextFormatter(Format f){
         TextFormatter<String> formatter=new TextFormatter<>(c->{
             String text=c.getText();
-            String newText=notNumber.matcher(text).replaceAll("");
+            String newText="";
+            switch(f){
+                case INT:{
+                    newText=text.replaceAll("[^0-9]+","");
+                    break;
+                }
+                case DOUBLE:{
+                    newText=text.replaceAll("[^0-9\\.]+","");
+                    break;
+                }
+            }
             int diff=text.length()-newText.length();
             c.setAnchor(c.getAnchor()-diff);
             c.setCaretPosition(c.getCaretPosition()-diff);
@@ -273,6 +312,11 @@ public class MosaicApp extends Application{
             return c;
         });
         return formatter;
+    }
+
+    private static enum Format{
+        INT,
+        DOUBLE
     }
 
     private void errorAlert(String message){

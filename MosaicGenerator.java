@@ -18,6 +18,7 @@ public class MosaicGenerator{
     boolean keepAspect=false;
     int columns=50;
     int rows=50;
+    double scale=2;
 
     public void addImage(File imageFile)throws IOException{
         assets.add(ImageIO.read(imageFile));
@@ -48,13 +49,24 @@ public class MosaicGenerator{
         this.columns=columns;
     }
 
+    public int getColumns(){
+        return columns;
+    }
+
     public void setRows(int rows){
         this.rows=rows;
     }
 
-    public void setMatrixSize(int columns,int rows){
-        this.columns=columns;
-        this.rows=rows;
+    public int getRows(){
+        return rows;
+    }
+
+    public void setScale(double scale){
+        this.scale=scale;
+    }
+
+    public double getScale(){
+        return scale;
     }
 
     public void setHasAlpha(boolean hasAlpha){
@@ -66,10 +78,6 @@ public class MosaicGenerator{
     }
 
     public void generate(File originalFile,File resultFile)throws Exception{
-        generate(originalFile,resultFile,2);
-    }
-
-    public void generate(File originalFile,File resultFile,double scale)throws Exception{
         BufferedImage original=ImageIO.read(originalFile);
 
         final double ORIGINAL_WIDTH=original.getWidth();
@@ -109,7 +117,7 @@ public class MosaicGenerator{
                 }
                 g.drawImage(atom,RESULT_X,RESULT_Y,null);
             }
-            System.out.println(String.format("%2.2f",99*((c+1d)/columns))+"% generated");
+            System.out.println(String.format("%02.2f",99*((c+1d)/columns))+"% generated");
         }
         String resultFileName=resultFile.getName();
         String formatName=resultFileName.substring(resultFileName.lastIndexOf(".")+1);
@@ -186,6 +194,4 @@ public class MosaicGenerator{
 
         return new Color(argb);
     }
-
-
 }
