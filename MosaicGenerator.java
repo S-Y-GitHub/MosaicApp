@@ -13,12 +13,25 @@ import java.util.Random;
 import javax.imageio.ImageIO;
 
 public class MosaicGenerator{
-    List<BufferedImage> assets=new ArrayList<>();
-    boolean hasAlpha=false;
-    boolean keepAspect=false;
-    int columns=50;
-    int rows=50;
-    double scale=2;
+    List<BufferedImage> assets;
+    boolean hasAlpha;
+    boolean keepAspect;
+    int columns;
+    int rows;
+    double scale;
+
+    public MosaicGenerator(){
+        this(new ArrayList<>(),false,false,50,50,2);
+    }
+
+    public MosaicGenerator(List<BufferedImage> assets,boolean hasAlpha,boolean keepAspect,int columns,int rows,double scale){
+        this.assets=new ArrayList<>(assets);
+        this.hasAlpha=hasAlpha;
+        this.keepAspect=keepAspect;
+        this.columns=columns;
+        this.rows=rows;
+        this.scale=scale;
+    }
 
     public void addImage(File imageFile)throws IOException{
         assets.add(ImageIO.read(imageFile));
@@ -77,52 +90,67 @@ public class MosaicGenerator{
         this.keepAspect=keepAspect;
     }
 
+    public double progress;
     public void generate(File originalFile,File resultFile)throws Exception{
-        BufferedImage original=ImageIO.read(originalFile);
-
-        final double ORIGINAL_WIDTH=original.getWidth();
-        final double ORIGINAL_HEIGHT=original.getHeight();
-
-        final double ORIGINAL_ATOM_WIDTH=ORIGINAL_WIDTH/columns;
-        final double ORIGINAL_ATOM_HEIGHT=ORIGINAL_HEIGHT/rows;
-
-        final double RESULT_WIDTH=ORIGINAL_WIDTH*scale;
-        final double RESULT_HEIGHT=ORIGINAL_HEIGHT*scale;
-
-        final double RESULT_ATOM_WIDTH=RESULT_WIDTH/columns;
-        final double RESULT_ATOM_HEIGHT=RESULT_HEIGHT/rows;
-
-        BufferedImage result=new BufferedImage((int)Math.round(RESULT_WIDTH),(int)Math.round(RESULT_HEIGHT),hasAlpha?BufferedImage.TYPE_4BYTE_ABGR:BufferedImage.TYPE_3BYTE_BGR);
-        Graphics2D g=result.createGraphics();
-
-        for(int c=0;c<columns;c++){
-            final int ORIGINAL_X_START=(int)Math.round(ORIGINAL_ATOM_WIDTH*c);
-            final int ORIGINAL_X_END=(int)Math.round(ORIGINAL_ATOM_WIDTH*(c+1));
-            final int RESULT_X=(int)Math.round(RESULT_ATOM_WIDTH*c);
-            for(int r=0;r<rows;r++){
-                final int ORIGINAL_Y_START=(int)Math.round(ORIGINAL_ATOM_HEIGHT*r);
-                final int ORIGINAL_Y_END=(int)Math.round(ORIGINAL_ATOM_HEIGHT*(r+1));
-                final int RESULT_Y=(int)Math.round(RESULT_ATOM_HEIGHT*r);
-
-                List<Integer> colors=new ArrayList<>();
-                for(int x=ORIGINAL_X_START;x<ORIGINAL_X_END;x++){
-                    for(int y=ORIGINAL_Y_START;y<ORIGINAL_Y_END;y++){
-                        colors.add(original.getRGB(x,y));
+        Thread thread=new Thread(){
+            public void run(){
+                progress=0;
+                try{
+                    BufferedImage original=ImageIO.read(originalFile);
+            
+                    final double ORIGINAL_WIDTH=original.getWidth();
+                    final double ORIGINAL_HEIGHT=original.getHeight();
+            
+                    final double ORIGINAL_ATOM_WIDTH=ORIGINAL_WIDTH/columns;
+                    final double ORIGINAL_ATOM_HEIGHT=ORIGINAL_HEIGHT/rows;
+            
+                    final double RESULT_WIDTH=ORIGINAL_WIDTH*scale;
+                    final double RESULT_HEIGHT=ORIGINAL_HEIGHT*scale;
+            
+                    final double RESULT_ATOM_WIDTH=RESULT_WIDTH/columns;
+                    final double RESULT_ATOM_HEIGHT=RESULT_HEIGHT/rows;
+            
+                    BufferedImage result=new BufferedImage((int)Math.round(RESULT_WIDTH),(int)Math.round(RESULT_HEIGHT),hasAlpha?BufferedImage.TYPE_4BYTE_ABGR:BufferedImage.TYPE_3BYTE_BGR);
+                    Graphics2D g=result.createGraphics();
+            
+                    for(int c=0;c<columns;c++){
+                        final int ORIGINAL_X_START=(int)Math.round(ORIGINAL_ATOM_WIDTH*c);
+                        final int ORIGINAL_X_END=(int)Math.round(ORIGINAL_ATOM_WIDTH*(c+1));
+                        final int RESULT_X=(int)Math.round(RESULT_ATOM_WIDTH*c);
+                        for(int r=0;r<rows;r++){
+                            final int ORIGINAL_Y_START=(int)Math.round(ORIGINAL_ATOM_HEIGHT*r);
+                            final int ORIGINAL_Y_END=(int)Math.round(ORIGINAL_ATOM_HEIGHT*(r+1));
+                            final int RESULT_Y=(int)Math.round(RESULT_ATOM_HEIGHT*r);
+            
+                            List<Integer> colors=new ArrayList<>();
+                            for(int x=ORIGINAL_X_START;x<ORIGINAL_X_END;x++){
+                                for(int y=ORIGINAL_Y_START;y<ORIGINAL_Y_END;y++){
+                                    colors.add(original.getRGB(x,y));
+                                }
+                            }
+            
+                            BufferedImage atom=ImageUtil.resize(getImage(getColor(colors).getRGB()),(int)Math.round(RESULT_ATOM_WIDTH),(int)Math.round(RESULT_ATOM_HEIGHT),keepAspect);
+                            if(!hasAlpha){
+                                ImageUtil.removeAlpha(atom);
+                            }
+                            g.drawImage(atom,RESULT_X,RESULT_Y,null);
+                        }
+                        progress=99.9*((c+1d)/columns);
+                        System.out.println(String.format("%02.2f",99*((c+1d)/columns))+"% generated");
                     }
+                    String resultFileName=resultFile.getName();
+                    String formatName=resultFileName.substring(resultFileName.lastIndexOf(".")+1);
+            
+                    ImageIO.write(result,formatName,resultFile);
+                    progress=100;
+                }catch(Exception e){
+                    e.printStackTrace();
+                    progress=-1;
                 }
-
-                BufferedImage atom=ImageUtil.resize(getImage(getColor(colors).getRGB()),(int)Math.round(RESULT_ATOM_WIDTH),(int)Math.round(RESULT_ATOM_HEIGHT),keepAspect);
-                if(!hasAlpha){
-                    ImageUtil.removeAlpha(atom);
-                }
-                g.drawImage(atom,RESULT_X,RESULT_Y,null);
             }
-            System.out.println(String.format("%02.2f",99*((c+1d)/columns))+"% generated");
-        }
-        String resultFileName=resultFile.getName();
-        String formatName=resultFileName.substring(resultFileName.lastIndexOf(".")+1);
-
-        ImageIO.write(result,formatName,resultFile);
+        };
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private boolean isSameImage(BufferedImage image1,BufferedImage image2){

@@ -7,7 +7,10 @@ import java.util.List;
 import javax.imageio.ImageIO;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -15,6 +18,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -231,12 +235,50 @@ public class MosaicApp extends Application{
                 errorAlert("original file is not selected or not exists");
                 return;
             }
+            final MosaicGenerator GENERATOR=generator;
+            generator=new MosaicGenerator(generator.assets,generator.hasAlpha,generator.keepAspect,generator.columns,generator.rows,generator.scale);
+
             File result=new File(labelResultPath.getText());
-            try{
-                generator.generate(original,result);
-            }catch(Exception ee){
-                errorAlert("failed to generate");
-            }
+
+            Stage stProgress=new Stage();
+            Task<Void> task=new Task<Void>() {
+                @Override
+                public Void call(){
+                    try{
+                        GENERATOR.generate(original,result);
+                        while(GENERATOR.progress<100){
+                            updateProgress(GENERATOR.progress,100);
+                            if(GENERATOR.progress==-1){
+                                throw new Exception();
+                            }
+                        }
+                    }catch(Exception ee){
+                        Platform.runLater(()->errorAlert("failed to generate"));
+                    }
+                    Platform.runLater(()->stProgress.close());
+                    return null;
+                }
+            };
+            Thread thread=new Thread(task);
+            thread.setDaemon(true);
+
+            Label labelFiles=new Label(original.getPath()+" -> "+result.getPath());
+            
+            ProgressBar progressBar=new ProgressBar();
+            progressBar.setMaxWidth(Double.MAX_VALUE);
+            progressBar.progressProperty().bind(task.progressProperty());
+
+            VBox vb=new VBox(labelFiles,progressBar);
+            vb.setAlignment(Pos.CENTER);
+
+            stProgress.setTitle("progress");
+            stProgress.setScene(new Scene(vb));
+            stProgress.setWidth(500);
+            stProgress.setHeight(200);
+            stProgress.setResizable(false);
+            stProgress.show();
+            stProgress.setOnCloseRequest(ee->ee.consume());
+            thread.start();
         });
         btnGenerate.setMaxWidth(Double.MAX_VALUE);
 
